@@ -19,10 +19,12 @@ def handle_client(id, io_sock, connection_sock: socket.socket):
         try:
             message = io_sock.readline()
             print(f"Client {id} sent: {message}")
-            if message == "":
+            if message == "\n":
                 send_message(id, f"User {id} has left the chat\n")
                 with connections_lock:
                     connections.pop(id)
+                    io_sock.write("connection closed\n")
+                    io_sock.flush()
                     connection_sock.close()
                     print(f"Client {id} socket closed")
                     break

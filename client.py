@@ -18,18 +18,21 @@ def add_to_queue(message):
     messages.put(f"{get_timestamp()} {message}")
 
 def monitor_socket(io_sock):
+    global running
     while running:
-        # try:
         message = io_sock.readline()
-        add_to_queue(message)
-        # except BlockingIOError:
-        #     time.sleep(0.1)
+        if message == "connection closed\n":
+            running = False
+        elif message == "":
+            add_to_queue("SERVER ERROR, CLOSING\n")
+            running = False
+        else:
+            add_to_queue(message)
 
 def main(server, port):
 
     sock = socket.create_connection((server, port))
     io_socket = sock.makefile("rw", encoding="utf-8")
-    # sock.setblocking(0)
 
     t = Thread(target=monitor_socket, args=(io_socket,))
     t.start()
@@ -64,11 +67,12 @@ def main(server, port):
     input_box.grid(row=1, column=0)
 
     def send_message():
-        global name
+        global name, running
         message = f"{name} {input_box.get()}\n"
         add_to_queue(message)
-        io_socket.write(message)
-        io_socket.flush()
+        if running:
+            io_socket.write(message)
+            io_socket.flush()
         input_box.delete(0, "end")
 
     send = tk.Button(window, text="Send", command=send_message)
@@ -77,10 +81,11 @@ def main(server, port):
     def teardown():
         global running
         running = False
-        # t.join()
-        io_socket.write("")
+        
+        io_socket.write("\n")
         io_socket.flush()
         window.destroy()
+        t.join()
         sock.close()
 
     quit = tk.Button(window, text="Quit", command=teardown)
